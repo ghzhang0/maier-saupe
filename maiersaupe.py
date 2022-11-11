@@ -1,6 +1,4 @@
-# from math import *
 from typing import Tuple
-# from array import array
 import numpy as np
 import scipy.optimize as opt
 
