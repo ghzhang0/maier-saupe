@@ -6,10 +6,14 @@ import matplotlib.pyplot as plt
 import maiersaupe as ms
 cmap = matplotlib.cm.get_cmap('viridis_r')
 
-def plot_defect(m0:np.ndarray, cone: ms.Cone, p: int, ax: matplotlib.axes.Axes, plot: bool = True) -> np.ndarray:
+def plot_defect(m0:np.ndarray, cone: ms.Cone, p: int, ax: matplotlib.axes.Axes,
+                plot: bool = True) -> np.ndarray:
     '''
-    * Calculate and return \int_0^{2 \pi} \nabla \vartheta dl centered about each lattice site.  
-    * Plot 1. p-atic texture, and 2. lattice sites colored by vorticity. (Gray: edge sites. Yellow: normal bulk sites without defects. Blue: bulk site with defect.)
+    * Calculate and return \int_0^{2 \pi} \nabla \vartheta dl centered about 
+    each lattice site.  
+    * Plot 1. p-atic texture, and 2. lattice sites colored by vorticity. (Gray: 
+    edge sites. Yellow: normal bulk sites without defects. Blue: bulk site with 
+    defect.)
     '''
 
     N = len(m0)
