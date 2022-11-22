@@ -2,7 +2,8 @@ from typing import Tuple
 import numpy as np
 import scipy.optimize as opt
 
-end_seam_slope = {6: [5, 1], 4:[]}
+end_seam_slope = {6: [2 * np.pi * 5/6,
+                      2 * np.pi * 1/6], 4:[]}
 
 class Patic():
     '''Class for a p-atic (p-fold rotationally symmetric liquid crystal).'''
@@ -113,7 +114,6 @@ class Cone(Sector):
         '''Initialize random orientations with assigned boundary conditions.'''
         N = len(self.lattice)
         N_bulk = len(self.bulk_indices)
-        w = self.alpha / self.coord_num
         np.random.seed(seed_num)
         m0 = np.random.rand(N)*2*np.pi
         if self.boundary_condition == 'tang':
@@ -295,7 +295,7 @@ class Hyperbolic(Cone):
         E0 = energy_func(m0[self.bulk_indices])
         return m0, E0
 
-def prepare_lattice(coord_num: int) -> np.ndarray:
+def prepare_lattice(coord_num: int, size: float = 80.) -> np.ndarray:
     '''Get sites of a 80x80 sized lattice with assigned coordination number.'''
     if coord_num == 6:
         lattice_vectors = np.array([[-1, 0.], [1/2., -np.sqrt(3)/2]])
@@ -303,14 +303,13 @@ def prepare_lattice(coord_num: int) -> np.ndarray:
         lattice_vectors = np.array([[1, 0.], [0, 1]])
     else:
         raise ValueError("Undefined coordination number.")
-    image_shape = (80, 80)
+    image_shape = (size, size)
     sites = generate_lattice(image_shape, lattice_vectors)
     return sites
 
 def generate_lattice(image_shape: tuple, lattice_vectors: np.ndarray,
                      edge_buffer: float = 1.) -> np.ndarray:
     '''Generate lattice points in given rectangular domain.'''
-    center_pix = np.array(image_shape) // 2
     num_vectors = int( ##Estimate how many lattice points we need
         max(image_shape) / np.sqrt(lattice_vectors[0]**2).sum())
     lattice_pts = []
@@ -319,11 +318,12 @@ def generate_lattice(image_shape: tuple, lattice_vectors: np.ndarray,
 
     for i in range(-num_vectors, num_vectors):
         for j in range(-num_vectors, num_vectors):
-            lp = i * lattice_vectors[0] + j * lattice_vectors[1] + center_pix
+            lp = (i * lattice_vectors[0] + j * lattice_vectors[1] 
+                  + np.array(image_shape) // 2)
             if all(lower_bounds < lp) and all(lp < upper_bounds):
                 lattice_pts.append(lp)
     lattice_pts = np.array(lattice_pts)
-    # Center of mass at origin (0,0)
+    # Center lattice at (0,0)
     lattice_pts[:, 0] = lattice_pts[:, 0] - np.mean(lattice_pts[:, 0])
     lattice_pts[:, 1] = lattice_pts[:, 1] - np.mean(lattice_pts[:, 1])
     return lattice_pts
@@ -379,3 +379,4 @@ def get_neighbors_list(A: np.ndarray) -> list:
                 neighbors[i].append(j)
                 neighbors[j].append(i)
     return neighbors
+    
