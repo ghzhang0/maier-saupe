@@ -3,7 +3,7 @@ import numpy as np
 import scipy.optimize as opt
 
 end_seam_slope = {6: [2 * np.pi * 5/6,
-                      2 * np.pi * 1/6], 4:[]}
+                      2 * np.pi * 1/6], 4:[2 * np.pi * 3/4]}
 
 class Patic():
     '''Class for a p-atic (p-fold rotationally symmetric liquid crystal).'''
@@ -75,10 +75,17 @@ class Cone(Sector):
             np.argsort(self.lattice[start_seam_inds].real)
             ] # Order by increasing x
 
-        if self.alpha in end_seam_slope[self.coord_num]:
+        if (self.alpha in end_seam_slope[self.coord_num] and
+            self.coord_num == 6):
             self.end_seam_inds = end_seam_inds[
                 np.argsort(self.lattice[end_seam_inds].real)
                 ] # Order by increasing x
+        elif (self.alpha in end_seam_slope[self.coord_num] and
+              self.coord_num == 4):
+            self.end_seam_inds = end_seam_inds[
+                np.argsort(self.lattice[end_seam_inds].imag)
+                ][::-1] # Order by decreasing y
+        # note: 1/4 case indices are automatically sorted for increasing y
         else:
             self.end_seam_inds = end_seam_inds[
                 np.argsort(self.lattice[end_seam_inds].real)
@@ -99,11 +106,11 @@ class Cone(Sector):
              if i not in self.edge_seam_indices])
 
     def del_seam_int(self):
-        '''Delete interactions between the two seams.'''
-        start_seam = self.start_seam_inds
-        for i_ind in range(len(start_seam)-1):
-            self.A[start_seam[i_ind], start_seam[i_ind+1]] = 0
-            self.A[start_seam[i_ind+1], start_seam[i_ind]] = 0
+        '''Delete interactions between sites on the end seam.'''
+        end_seam = self.end_seam_inds
+        for i_ind in range(len(end_seam)-1):
+            self.A[end_seam[i_ind], end_seam[i_ind+1]] = 0
+            self.A[end_seam[i_ind+1], end_seam[i_ind]] = 0
 
     def del_ap_int(self):
         '''Delete interactions with apex.'''
