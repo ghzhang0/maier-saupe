@@ -2,9 +2,6 @@ from typing import Tuple
 import numpy as np
 import scipy.optimize as opt
 
-end_seam_slope = {6: [2 * np.pi * 5/6,
-                      2 * np.pi * 1/6], 4:[2 * np.pi * 3/4]}
-
 class Patic():
     '''Class for a p-atic (p-fold rotationally symmetric liquid crystal).'''
     def __init__(self, J: float, p: int):
@@ -74,22 +71,9 @@ class Cone(Sector):
         self.start_seam_inds = start_seam_inds[
             np.argsort(self.lattice[start_seam_inds].real)
             ] # Order by increasing x
-
-        if (self.alpha in end_seam_slope[self.coord_num] and
-            self.coord_num == 6):
-            self.end_seam_inds = end_seam_inds[
-                np.argsort(self.lattice[end_seam_inds].real)
-                ] # Order by increasing x
-        elif (self.alpha in end_seam_slope[self.coord_num] and
-              self.coord_num == 4):
-            self.end_seam_inds = end_seam_inds[
-                np.argsort(self.lattice[end_seam_inds].imag)
-                ][::-1] # Order by decreasing y
-        # note: 1/4 case indices are automatically sorted for increasing y
-        else:
-            self.end_seam_inds = end_seam_inds[
-                np.argsort(self.lattice[end_seam_inds].real)
-                ][::-1] # Order by decreasing x
+        self.end_seam_inds = end_seam_inds[
+            np.argsort(np.abs(self.lattice[end_seam_inds]))
+            ]  #Order by distance from apex  
         # Last site on seam is also on edge
         self.edge_indices = np.append(self.cut_indices[rlen:-rlen],
                                       self.start_seam_inds[-1])
