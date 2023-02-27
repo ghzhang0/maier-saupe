@@ -1,5 +1,5 @@
 # maier-saupe
-Code for energy minimization of liquid crystals on cones and hyperbolic cones. 
+Code for energy minimization of liquid crystals on cones and hyperbolic cones, based off of a generalization of the Maier-Saupe theory of nematic liquid crystals to liquid crystals with $p$-fold rotational symmetry. 
 
 ## Related publications
 
