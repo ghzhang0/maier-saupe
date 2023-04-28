@@ -1,3 +1,21 @@
+"""
+Identifies and plots topological defects in liquid crystal textures.
+
+Functions:
+
+    plot_defect -- Calculates defect charges in liquid crystals on a
+        maiersaupe.Cone instance, and plots the liquid crystal texture and defect sites.
+    cone_plot -- Plots liquid crystal texture and defect locations on a conic  
+        sector of the polar plane.
+    hyp_plot -- Plots liquid crystal texture and defect locations on a
+        hyperbolic conic sectors of two polar planes.
+    plot_hyperbolic_seam -- Identifies defect charges on the seam of two
+        hyperbolic conic sectors.
+    hyp_lattice_plot -- Plots the lattice within the hyperbolic conic sectors
+        on two polar planes.
+
+"""
+
 from typing import List
 import numpy as np
 import matplotlib
@@ -8,8 +26,8 @@ cmap = matplotlib.cm.get_cmap('viridis_r')
 def plot_defect(m0: np.ndarray, cone: ms.Cone, p: int, ax: matplotlib.axes.Axes,
                 plot: bool = True) -> np.ndarray:
     '''
-    * Calculate and return \int_0^{2 \pi} \nabla \vartheta dl centered about
-    each lattice site.
+    * Calculate and return the topological defect charge
+    \int_0^{2 \pi} \nabla \vartheta dl centered about each lattice site.
     * Plot 1. p-atic texture, and 2. lattice sites colored by vorticity. (Gray:
     edge sites. Yellow: normal bulk sites without defects. Blue: bulk site with
     defect.)

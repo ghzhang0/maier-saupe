@@ -7,12 +7,12 @@ Classes:
     Sector -- Class for a lattice contained in a sector of the polar plane.
     Cone -- Subclass of Sector for a lattice on a cone.
     Disk -- Subclass of Sector for a lattice on a disk.
-    Hyperbolic -- Subclass of Sector for a lattice on a hyperbolic cone; constructs a hyperbolic cone by cutting and gluing together a disk and a cone.
+    Hyperbolic -- Subclass of Sector for a lattice on a hyperbolic cone;constructs a hyperbolic cone by cutting and gluing together a disk and a cone.
 
 Helper functions:
 
     prepare_lattice -- Prepare precut lattice.
-    generate_lattice -- Generate points via lattice vectors inside a fixed
+    generate_lattice -- Generate points via lattice vectors within a
     region.
     in_circ -- Check if point is inside a circle.
     in_cone -- Check if point is inside a conic sector.
