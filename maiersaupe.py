@@ -1,70 +1,97 @@
+"""
+Program for energy minimization of a lattice of liquid crystal molecules on curved surfaces.
+
+Classes:
+
+    Patic -- Class for a p-atic (p-fold rotationally symmetric liquid crystal).
+    Sector -- Class for a lattice contained in a sector of the polar plane.
+    Cone -- Subclass of Sector for a lattice on a cone.
+    Disk -- Subclass of Sector for a lattice on a disk.
+    Hyperbolic -- Subclass of Sector for a lattice on a hyperbolic cone; constructs a hyperbolic cone by cutting and gluing together a disk and a cone.
+
+Helper functions:
+
+    prepare_lattice -- Prepare precut lattice.
+    generate_lattice -- Generate points via lattice vectors inside a fixed
+    region.
+    in_circ -- Check if point is inside a circle.
+    in_cone -- Check if point is inside a conic sector.
+    get_sorted_lattice -- Sort lattice sites by angle.
+    get_adjacency_matrix -- Get adjacency matrix of a lattice.
+
+"""
+
 from typing import Tuple
+from dataclasses import dataclass, field
 import numpy as np
 import scipy.optimize as opt
 
-class Patic():
+@dataclass
+class Patic:
     '''Class for a p-atic (p-fold rotationally symmetric liquid crystal).'''
-    def __init__(self, J: float, p: int):
-        self.J = J
-        self.p = p
+    J: float # interaction strength between liquid crystal molecules
+    p: int # p-fold rotational symmetry of liquid crystal
 
-class Sector():
+@dataclass
+class Sector:
     '''Class for a lattice contained in a sector of the polar plane'''
-    def __init__(self, r: float, alpha: float, coord_num: int,
-                 boundary_condition: str):
-        self.r = r
-        self.alpha = alpha # sector angle = 2 * pi * alpha / coord_num
-        self.coord_num = coord_num
-        self.boundary_condition = boundary_condition
-        self.lattice = None
-        self.ap_ind = None
-        self.cut_indices = None
-        self.edge_indices = None
-        self.bulk_indices = None
-        self.start_seam_inds = None
-        self.end_seam_inds = None
+    r: float # radius of sector
+    coord_num: int # coordination number of lattice
+    boundary_condition: str # boundary condition of lattice
+    sites_rec: np.ndarray # rectangular patch of lattice site coordinates
+    alpha: float = 2*np.pi # sector angle = 2 * pi * alpha / coord_num
+    lattice: np.ndarray = field(init=False) # lattice sites
+    ap_ind: int = field(init=False) # index of apex site
+    cut_indices: np.ndarray = field(init=False) # indices of boundary sites
+    edge_indices: np.ndarray = field(init=False) # indices of edge sites
+    bulk_indices: np.ndarray = field(init=False) # indices of bulk sites
+    start_seam_inds: np.ndarray = field(init=False) # indices of start of seam
+    end_seam_inds: np.ndarray = field(init=False) # indices of end of seam
 
-    def get_boundary_inds(self):
-        '''Return indices of boundary sites (sites w/ < coord_num neighbors).'''
+    def get_boundary_inds(self) -> None:
+        '''Return indices of boundary sites (sites w/ < coord_num neighbors).
+        Side effect: sets self.cut_indices.'''
         cut_indices = []
         for row_ind, row in enumerate(self.A):
             if np.sum(row) < self.coord_num and row_ind != self.ap_ind:
                 cut_indices.append(row_ind)
         self.cut_indices = np.array(cut_indices)
 
-    def order_inds(self, spots_cone: np.ndarray):
-        '''Sort lattice sites by angle and associated adjacency matrix.'''
+    def order_inds(self, spots_cone: np.ndarray) -> None:
+        '''Sort lattice sites by angle and associated adjacency matrix.
+        Side effect: sets self.lattice and self.A.'''
         self.lattice = get_sorted_lattice(spots_cone)
         self.A = get_adjacency_matrix(self.lattice)
 
+@dataclass
 class Cone(Sector):
     '''Class for a lattice on an unrolled cone.'''
-    def __init__(self, r: float, alpha: float, coord_num: int,
-                 boundary_condition: str, sites_rec: np.ndarray):
-        self.r = r
-        self.alpha = alpha # sector angle = 2 * pi * alpha / coord_num
-        self.coord_num = coord_num
-        self.boundary_condition = boundary_condition
-        self.lattice = None
-        self.ap_ind = None
-        self.cut_indices = None
-        self.edge_indices = None
-        self.bulk_indices = None
-        self.start_seam_inds = None
-        self.end_seam_inds = None
-        sites = cut_sector(sites_rec, self.alpha, self.r)
+
+    def __post_init__(self) -> None:
+        '''Initialize lattice and adjacency matrix.'''
+        sites = cut_sector(self.sites_rec, self.alpha, self.r)
         self.update_latt_inds(sites)
 
-    def separate_inds(self):
-        '''Separate indices of bulk, edge, seam, and apex sites.'''
+    def update_latt_inds(self, spots_cone: np.ndarray) -> None:
+        '''Order and separate lattice indices of spots_cone.
+        Side effect: sets all of self's _indices and _inds variables.'''
+        self.order_inds(spots_cone)
+        self.separate_inds()
+
+    def separate_inds(self) -> None:
+        '''Separate indices of bulk, edge, seam, and apex sites.
+        Side effect: sets self.edge_indices, self.bulk_indices, self.ap_ind,
+        self.start_seam_inds, and self.end_seam_inds.'''
         self.ap_ind = np.where(np.abs(self.lattice) == 0)[0][0]
         self.get_boundary_inds() # Get indices of boundary points
         self.separate_rim_and_seam()
         self.del_seam_int()
         self.del_ap_int()
 
-    def separate_rim_and_seam(self):
-        '''Separate edge indices from seam indices.'''
+    def separate_rim_and_seam(self) -> None:
+        '''Separate edge indices from seam indices.
+        Side effect: sets self.edge_indices, self.start_seam_inds,
+        self.end_seam_inds, self.edge_seam_indices, and self.bulk_indices.'''
         rlen = int(self.r)
         start_seam_inds = self.cut_indices[:rlen] # Seam at phi = 0
         end_seam_inds = self.cut_indices[-rlen:] # Seam at phi = sector_angle
@@ -73,7 +100,7 @@ class Cone(Sector):
             ] # Order by increasing x
         self.end_seam_inds = end_seam_inds[
             np.argsort(np.abs(self.lattice[end_seam_inds]))
-            ]  #Order by distance from apex  
+            ]  #Order by distance from apex
         # Last site on seam is also on edge
         self.edge_indices = np.append(self.cut_indices[rlen:-rlen],
                                       self.start_seam_inds[-1])
@@ -89,15 +116,17 @@ class Cone(Sector):
             [i for i in np.arange(len(self.lattice))
              if i not in self.edge_seam_indices])
 
-    def del_seam_int(self):
-        '''Delete interactions between sites on the end seam.'''
+    def del_seam_int(self) -> None:
+        '''Delete interactions between sites on the end seam.
+        Side effect: modifies self.A.'''
         end_seam = self.end_seam_inds
         for i_ind in range(len(end_seam)-1):
             self.A[end_seam[i_ind], end_seam[i_ind+1]] = 0
             self.A[end_seam[i_ind+1], end_seam[i_ind]] = 0
 
-    def del_ap_int(self):
-        '''Delete interactions with apex.'''
+    def del_ap_int(self) -> None:
+        '''Delete interactions with apex.
+        Side effect: modifies self.A.'''
         self.A[self.ap_ind] = 0
         self.A[:, self.ap_ind] = 0
 
@@ -124,11 +153,6 @@ class Cone(Sector):
         energy = -np.sum(LC.J*self.A*(np.cos(LC.p*(ddtheta))-1))
         return energy
 
-    def update_latt_inds(self, spots_cone: np.ndarray):
-        '''Order and separate lattice indices of spots_cone.'''
-        self.order_inds(spots_cone)
-        self.separate_inds()
-
     def get_ground_state_energy(self, LC: Patic,
                                 seed_num: int) -> Tuple[float, np.ndarray]:
         '''Minimize Maier-Saupe energy of LC.'''
@@ -140,28 +164,20 @@ class Cone(Sector):
         m0[self.end_seam_inds] = m0[self.start_seam_inds]- (2*np.pi-self.alpha)
         return m0, energy_func(mbulk_res)
 
+@dataclass
 class Disk(Cone):
     '''Class for a lattice on a disk.'''
-    def __init__(self, r: float, coord_num: int, boundary_condition: str,
-                 sites_rec: np.ndarray, cut: bool = False):
-        self.r = r
-        self.coord_num = coord_num
-        self.boundary_condition = boundary_condition
-        self.lattice = None
-        self.ap_ind = None
-        self.cut_indices = None
-        self.edge_indices = None
-        self.bulk_indices = None
-        self.start_seam_inds = None
-        self.end_seam_inds = None
-        sites = cut_sector(sites_rec, 2 * np.pi, self.r)
-        self.update_latt_inds(sites)
-        self.ap_ind = np.where(np.abs(self.lattice) == 0)[0][0]
-        if cut:
+    cut: bool = False
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if self.cut:
             self.add_seam()
 
-    def separate_inds(self):
-        '''Separate indices of bulk and edge sites.'''
+    def separate_inds(self) -> None:
+        '''Separate indices of bulk and edge sites.
+        Side effect: sets self.edge_indices, self.bulk_indices, self.ap_ind.'''
+        self.ap_ind = np.where(np.abs(self.lattice) == 0)[0][0]
         self.get_boundary_inds()
         if self.boundary_condition == 'tang':
             self.edge_indices = self.cut_indices
@@ -171,8 +187,10 @@ class Disk(Cone):
             [i for i in np.arange(len(self.lattice))
              if i not in self.edge_indices])
 
-    def add_seam(self):
-        '''Add seam to disk at x = 0 and update adjancency matrix.'''
+    def add_seam(self) -> None:
+        '''Add seam to disk at x = 0 and update adjancency matrix.
+        Side effect: modifies self.start_seam_inds, self.end_seam_inds,
+        self.lattice, and self.A.'''
         start_seam_inds = np.where(((self.lattice.imag == 0)
                                     & (self.lattice.real > 0)))[0]
         self.start_seam_inds = start_seam_inds[
@@ -193,8 +211,9 @@ class Disk(Cone):
                     self.A[j, n + x] = 1
         self.del_ap_int()
 
-    def del_ap_int(self):
-        '''Delete interactions with apex.'''
+    def del_ap_int(self) -> None:
+        '''Delete interactions with apex.
+        Side effect: modifies self.A.'''
         self.A[self.ap_ind] = 0
         self.A[:, self.ap_ind] = 0
 
@@ -226,9 +245,32 @@ class Disk(Cone):
         m0[self.bulk_indices] = m0_d[self.bulk_indices]
         return m0
 
+    def get_ground_state_energy(self, LC: Patic,
+                                seed_num: int) -> Tuple[float, np.ndarray]:
+        '''Minimize Maier-Saupe energy of LC.'''
+        if self.cut:
+            return super.get_ground_state_energy(LC, seed_num)
+        m0 = self.initialize_m0(seed_num)
+        energy_func = lambda mbulk: self.get_energy(LC, m0, mbulk)
+        mbulk_res = opt.minimize(energy_func, m0[self.bulk_indices],
+                                method='BFGS').x
+        m0[self.bulk_indices] = mbulk_res
+        return m0, energy_func(mbulk_res)
+
+    def get_energy(self, LC: Patic, m0: np.ndarray, mbulk: np.ndarray) -> float:
+        '''Compute Maier-Saupe energy of LC on cone_latt.'''
+        if self.cut:
+            return super.get_energy(LC, m0, mbulk)
+        m0[self.bulk_indices] = mbulk
+        ddtheta = np.array([m0[i] - m0 for i in np.arange(len(m0))])
+        energy = -np.sum(LC.J*self.A*(np.cos(LC.p*(ddtheta))-1))
+        return energy
+
 class Hyperbolic(Cone):
     '''Class for a lattice on an unrolled hyperbolic cone.'''
-    def __init__(self, bottom_layer: Disk, top_layer: Cone):
+    def __init__(self, bottom_layer: Disk, top_layer: Cone) -> None:
+        '''Initialize hyperbolic cone by cutting and glueing together a disk
+        and a cone sector.'''
         self.r = top_layer.r
         self.alpha = top_layer.alpha + 2 * np.pi
         self.coord_num = top_layer.coord_num
@@ -243,8 +285,9 @@ class Hyperbolic(Cone):
         self.A = None
         self.get_A()
 
-    def get_A(self):
-        '''Get adjancency matrix for hyperbolic cone.'''
+    def get_A(self) -> None:
+        '''Get adjancency matrix for hyperbolic cone.
+        Side effect: updates self.A.'''
         n = len(self.top.A)
         m = len(self.bottom.A)
         self.A = np.block([[self.top.A, np.zeros((n, m))], \
@@ -262,7 +305,7 @@ class Hyperbolic(Cone):
         n = len(self.top.A)
         m0[self.top.bulk_indices] = mbulk[:len(self.top.bulk_indices)]
         m0[n + self.bottom.bulk_indices] = mbulk[len(self.top.bulk_indices):]
-        m0[self.top.end_seam_inds] = (m0[n + self.bottom.start_seam_inds] 
+        m0[self.top.end_seam_inds] = (m0[n + self.bottom.start_seam_inds]
                                       - (2*np.pi-self.top.alpha))
         m0[n + self.bottom.end_seam_inds] = m0[self.top.start_seam_inds]
         ddtheta = np.array([m0[i] - m0 for i in np.arange(len(m0))])
@@ -286,21 +329,21 @@ class Hyperbolic(Cone):
         E0 = energy_func(m0[self.bulk_indices])
         return m0, E0
 
-def prepare_lattice(coord_num: int, size: float = 80.) -> np.ndarray:
-    '''Get sites of a 80x80 sized lattice with assigned coordination number.'''
+def prepare_lattice(coord_num: int, n: float = 80.) -> np.ndarray:
+    '''Get sites of a nxn sized lattice with coordination number coord_num.'''
     if coord_num == 6:
         lattice_vectors = np.array([[-1, 0.], [1/2., -np.sqrt(3)/2]])
     elif coord_num == 4:
         lattice_vectors = np.array([[1, 0.], [0, 1]])
     else:
         raise ValueError("Undefined coordination number.")
-    image_shape = (size, size)
+    image_shape = (n, n)
     sites = generate_lattice(image_shape, lattice_vectors)
     return sites
 
 def generate_lattice(image_shape: tuple, lattice_vectors: np.ndarray,
                      edge_buffer: float = 1.) -> np.ndarray:
-    '''Generate lattice points in given rectangular domain.'''
+    '''Generate periodic points via lattice_vectors in a rectangular domain.'''
     num_vectors = int( ##Estimate how many lattice points we need
         max(image_shape) / np.sqrt(lattice_vectors[0]**2).sum())
     lattice_pts = []
@@ -357,7 +400,7 @@ def get_adjacency_matrix(lattice: np.ndarray) -> np.ndarray:
     for i, ri in enumerate(lattice):
         for j, rj  in enumerate(lattice):
             if abs(ri - rj) < 1.2 and i != j:
-                A[i, j] = 1 
+                A[i, j] = 1
     return A
 
 def get_neighbors_list(A: np.ndarray) -> list:
