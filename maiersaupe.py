@@ -1,5 +1,5 @@
 """
-Program for energy minimization of a lattice of liquid crystal molecules on curved surfaces.
+Program for energy minimization of a lattice of liquid crystal molecules on conic surfaces.
 
 Classes:
 
