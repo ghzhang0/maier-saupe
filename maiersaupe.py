@@ -404,7 +404,8 @@ def get_adjacency_matrix(lattice: np.ndarray) -> np.ndarray:
     return A
 
 def get_neighbors_list(A: np.ndarray) -> list:
-    '''Given an adjacency matrix A, return a list of neighbors.'''
+    '''Given an adjacency matrix A, return a list of neighbors.
+    Not used in current implementation; may need for larger system sizes.'''
     N = len(A)
     neighbors = [[] for i in range(N)]
     for i in range(N):
